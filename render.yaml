@@ -1,0 +1,72 @@
+envVarGroups:
+  # Non-secret part of x-airflow-common
+  - name: airflow-common
+    envVars:
+      - key: AIRFLOW__CORE__EXECUTOR
+        value: LocalExecutor
+      - key: AIRFLOW__CORE__LOAD_EXAMPLES
+        value: "False"
+
+services:
+  - type: pserv
+    name: postgres
+    runtime: image
+    image:
+      url: docker.io/library/postgres:13
+    plan: starter
+    disk:
+      name: postgres_data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 5
+    envVars:
+      - fromGroup: eonet-secrets
+      - key: POSTGRES_USER
+        value: postgres
+      - key: POSTGRES_DB
+        value: EONET
+      - key: PGDATA
+        value: /var/lib/postgresql/data/pgdata
+      - key: PORT
+        value: "5432"
+
+  # airflow-init + airflow-webserver
+  - type: web
+    name: airflow-webserver
+    runtime: docker
+    plan: standard
+    dockerfilePath: ./airflow/Dockerfile
+    dockerContext: .
+    dockerCommand: webserver
+    healthCheckPath: /health
+    preDeployCommand: >-
+      bash -c 'airflow db init &&
+      (airflow users create --username admin --password admin
+      --firstname Admin --lastname User --role Admin
+      --email admin@example.com || true)'
+    envVars:
+      - fromGroup: airflow-common
+      - fromGroup: eonet-secrets
+      - key: PORT
+        value: "8080"
+
+  - type: worker
+    name: airflow-scheduler
+    runtime: docker
+    plan: standard
+    dockerfilePath: ./airflow/Dockerfile
+    dockerContext: .
+    dockerCommand: scheduler
+    envVars:
+      - fromGroup: airflow-common
+      - fromGroup: eonet-secrets
+
+  - type: web
+    name: fastapi
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: ./api
+    envVars:
+      - fromGroup: eonet-secrets
+      - key: PORT
+        value: "8000"
