@@ -38,16 +38,17 @@ services:
     dockerContext: .
     dockerCommand: webserver
     healthCheckPath: /health
-    preDeployCommand: >-
-      bash -c 'airflow db init &&
-      (airflow users create --username admin --password "$PGPASSWORD"
-      --firstname Admin --lastname User --role Admin
-      --email admin@example.com || true)'
     envVars:
       - fromGroup: airflow-common
       - fromGroup: eonet-secrets
       - key: PORT
         value: "8080"
+      - key: _AIRFLOW_DB_MIGRATE        # Airflow 2.7+; use _AIRFLOW_DB_UPGRADE on older versions
+        value: "true"
+      - key: _AIRFLOW_WWW_USER_CREATE
+        value: "true"
+      - key: _AIRFLOW_WWW_USER_USERNAME
+        value: admin
 
   - type: worker
     name: airflow-scheduler
