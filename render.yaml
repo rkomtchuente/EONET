@@ -1,3 +1,13 @@
+# NOTE: the "eonet-secrets" env group is NOT defined here on purpose.
+# Create it in the Render Dashboard (Env Groups -> New Environment Group)
+# BEFORE syncing this Blueprint, with at least these keys:
+#   POSTGRES_PASSWORD
+#   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN   (AIRFLOW__CORE__SQL_ALCHEMY_CONN on Airflow < 2.3)
+#   AIRFLOW__CORE__FERNET_KEY
+#   AIRFLOW__WEBSERVER__SECRET_KEY
+#   _AIRFLOW_WWW_USER_PASSWORD            (Airflow admin login password; NOT the DB password)
+# plus any API keys / DB settings that fastapi and your DAGs read.
+
 envVarGroups:
   # Non-secret part of x-airflow-common
   - name: airflow-common
@@ -36,14 +46,17 @@ services:
     plan: standard
     dockerfilePath: ./airflow/Dockerfile
     dockerContext: .
-    dockerCommand: webserver
+    # Render's dockerCommand replaces the image's ENTRYPOINT as well as CMD,
+    # so call the official image's /entrypoint script explicitly. It runs the
+    # DB migration and admin-user creation below, then starts the webserver.
+    dockerCommand: /entrypoint webserver
     healthCheckPath: /health
     envVars:
       - fromGroup: airflow-common
       - fromGroup: eonet-secrets
       - key: PORT
         value: "8080"
-      - key: _AIRFLOW_DB_MIGRATE        # Airflow 2.7+; use _AIRFLOW_DB_UPGRADE on older versions
+      - key: _AIRFLOW_DB_MIGRATE        # use _AIRFLOW_DB_UPGRADE on Airflow < 2.7
         value: "true"
       - key: _AIRFLOW_WWW_USER_CREATE
         value: "true"
@@ -56,7 +69,7 @@ services:
     plan: standard
     dockerfilePath: ./airflow/Dockerfile
     dockerContext: .
-    dockerCommand: scheduler
+    dockerCommand: /entrypoint scheduler
     envVars:
       - fromGroup: airflow-common
       - fromGroup: eonet-secrets
