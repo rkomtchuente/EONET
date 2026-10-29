@@ -18,7 +18,7 @@ def eonet_etl():
     events = response.json().get('events', [])
 
     # Connect to database
-    conn = psycopg2.connect(host="postgres", port=5432, dbname='EONET', user='postgres', password=dbpwd)
+    conn = psycopg2.connect(host="postgres-hnn6", port=5432, dbname='EONET', user='postgres', password=dbpwd)
     cur = conn.cursor()
 
     # creates table if does not exist
